@@ -4,9 +4,11 @@ using UnityEngine;
 
 public class Chatbox : MonoBehaviour {
 
+#pragma warning disable 0649
   [SerializeField] private Transform content;
   [SerializeField] private UnityEngine.UI.Text messagePrefab;
   [SerializeField] private int maxMessageHistory = 100;
+#pragma warning restore 0649
 
   private Queue<UnityEngine.UI.Text> messages = new Queue<UnityEngine.UI.Text>();
 

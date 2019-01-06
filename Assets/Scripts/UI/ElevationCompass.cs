@@ -5,6 +5,7 @@ using NavigationSystem;
 
 public class ElevationCompass : MonoBehaviour {
 
+#pragma warning disable 0649
   [SerializeField] private Player player;
   [SerializeField] private UnityEngine.UI.Text center;
   [SerializeField] private UnityEngine.UI.Text north;
@@ -16,6 +17,7 @@ public class ElevationCompass : MonoBehaviour {
   [SerializeField] private UnityEngine.UI.Text northeast;
   [SerializeField] private UnityEngine.UI.Text southwest;
   [SerializeField] private UnityEngine.UI.Text southeast;
+#pragma warning restore 0649
 
   private const string intFormat = "+#; -#; 0"; //For floats"+#.0;-#.0; 0.0";
 

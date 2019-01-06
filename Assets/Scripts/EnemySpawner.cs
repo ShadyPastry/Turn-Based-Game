@@ -5,7 +5,9 @@ using TurnSystem;
 
 public class EnemySpawner : MonoBehaviour, ITurnTaker {
 
+#pragma warning disable 0649
   [SerializeField] private Enemy enemyPrefab;
+#pragma warning restore 0649
   private int numEnemiesToSpawn = 3;
 
   private List<Enemy> spawnedEnemies = new List<Enemy>();

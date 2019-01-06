@@ -9,11 +9,13 @@ namespace SkillSystem {
     //Graphics
     //
 
+#pragma warning disable 0649
     [SerializeField] private GameObject _fireballGfx;
     public static GameObject FireballGfx { get { return S._fireballGfx; } }
 
     [SerializeField] private GameObject _sparkGfx;
     public static GameObject SparkGfx { get { return S._sparkGfx; } }
+#pragma warning restore 0649
 
 
     //

@@ -3,9 +3,11 @@ using UnityEngine;
 
 public class CameraController : MonoBehaviour {
 
+#pragma warning disable 0649
   [SerializeField] private Player player;
   [SerializeField] private RectTransform leftPanel;
   [SerializeField] private RectTransform bottomPanel;
+#pragma warning restore 0649
   private new Camera camera;
 
   //For use in Mathf.SmoothDamp calls

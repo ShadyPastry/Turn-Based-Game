@@ -8,11 +8,13 @@ public class GameManager : MonoBehaviour {
 
   public static readonly int standardTurnTime = 600;
 
+#pragma warning disable 0649
   [SerializeField] private UnityEngine.UI.Text gameOverText;
   [SerializeField] private Chatbox chatbox;
   [SerializeField] private TextAsset[] levels;
   [SerializeField] private GameObject grassPrefab;
   [SerializeField] private GameObject icePrefab;
+#pragma warning restore 0649
 
   private static GameManager S { get; set; }
   private static TurnManager turns;

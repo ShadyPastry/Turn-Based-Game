@@ -4,8 +4,10 @@ using UnityEngine;
 
 public class SoundManager : MonoBehaviour {
 
+#pragma warning disable 0649
   [SerializeField] private Sound[] _sounds = (Sound[])System.Enum.GetValues(typeof(Sound));
   [SerializeField] private AudioSource[] _audioClips;
+#pragma warning restore 0649
   private Dictionary<Sound, AudioSource> sounds;
 
   public enum Sound { DAMAGE, DEATH, BGM, FIRE, CUT, WALK }

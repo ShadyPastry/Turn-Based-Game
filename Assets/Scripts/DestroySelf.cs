@@ -4,7 +4,9 @@ using UnityEngine;
 
 public class DestroySelf : MonoBehaviour {
 
+#pragma warning disable 0649
   [SerializeField] float secondsToWait;
+#pragma warning restore 0649
 
   private void Start() {
     StartCoroutine(SelfDestruct());

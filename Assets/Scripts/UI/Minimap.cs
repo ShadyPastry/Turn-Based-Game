@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 
 public class Minimap : MonoBehaviour {
+#pragma warning disable 0649
   [SerializeField] private Player player;
   [SerializeField] private int rows;
   [SerializeField] private int cols;
@@ -11,6 +12,7 @@ public class Minimap : MonoBehaviour {
   [SerializeField] private MinimapButton minimapButtonPrefab;
   [SerializeField] private GameObject youAreHere;
   [SerializeField] private GameObject playerTarget;
+#pragma warning restore 0649
 
   private MinimapButton[][] buttons;
 

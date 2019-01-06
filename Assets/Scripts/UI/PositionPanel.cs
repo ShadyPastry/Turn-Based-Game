@@ -4,7 +4,9 @@ using UnityEngine;
 
 public class PositionPanel : MonoBehaviour {
 
+#pragma warning disable 0649
   [SerializeField] private Player player;
+#pragma warning restore 0649
   private UnityEngine.UI.Text positionText;
 
   private void Awake() {
