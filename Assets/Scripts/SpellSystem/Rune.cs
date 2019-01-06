@@ -7,7 +7,7 @@ namespace SpellSystem {
   //When added to Spellbook, they change Spellbook.Energies and Spellbook.Alignment
   //See SpellPage for details on how Runes affect SpellPage
   public abstract partial class Rune {
-    //If you want to be able to "level up" Runes, then add a Rune-specific (RuneUpgrade : ISpellbookModifier, IUpgradeable) to Spellbook
+    //If you want to be able to "level up" Runes, then add a Rune-specific "RuneUpgrade : ISpellbookModifier, IUpgradeable" to Spellbook
 
     public static readonly Rune Heat = new BasicRune(SpellAttribute.Fire);
     public static readonly Rune Chill = new BasicRune(SpellAttribute.Ice);
@@ -28,7 +28,10 @@ namespace SpellSystem {
     }
 
     public abstract int AlignmentChange { get; }
+
+    //public abstract int IdealRank { get; }
     //public abstract int IdealLinkDistance { get; }
+    //public abstract int IdealLinkCount { get; }
   }
 
   public struct RuneEnergy {

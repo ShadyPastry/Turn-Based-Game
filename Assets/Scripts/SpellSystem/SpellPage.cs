@@ -3,28 +3,9 @@ using System.Collections.Generic;
 using UnityEngine;
 
 namespace SpellSystem {
-  //Definitely including
-  //int basePower
-  //Dictionary<> energyNeeded
 
-  //Other fields are needed, but they depend on what I want from the design...
-
-  //Leaning towards no TP...  Do I want TP in the game at all?
-
-  //TP (should maybe rename) is basically an upper limit on how many active SpellPages you can maintain in battle.
-  //  Maintaining an "active" SpellPage requires TP; more complex, powerful spells need more TP.
-
-  //Should (some) spells be a moving hazard?  Range, speed, homing.  But that would depend on TurnSystem...
-  //In which case, extending these abstract classes should be up to the client, perhaps?
-  //But then, what does SpellSystem provide?
-
-
-  //Decide: Do Spells care about Runes at all, or are those exclusively for modifying Spellbook?
-  //  If they don't care about Runes, I think that kinda takes away from the player-spell-making concept
-  //  How about a Spell is built using Runes, but the casting only cares about the energy requirements?
-
-
-
+  //TODO: Make alignment-related stuff a part of Spellbook.
+  //  Maybe SpellPage can have a preferred alignment based on the runes it contains
   public class SpellPage {
     public static int PureOrder { get; } = 1001;
     public static int PureChaos { get; } = -1;
@@ -70,7 +51,6 @@ namespace SpellSystem {
     public int MaxActiveRank { get { return maxActiveRank[OrderTier]; } }
     public int MaxLinkSlots { get { return maxLinkSlots[ChaosTier]; } }
 
-    //TODO: Have (some of?) these be methods that accept OrderTier or ChaosTier as an argument
     //TODO: Add a rank 0 with special behavior?
 
     //TODO: Does this need to be reversed?
@@ -165,8 +145,8 @@ namespace SpellSystem {
       int baseChaosPower = BaseChaosPower(rank, file);
 
       int totalPower = 0;
-      totalPower += (int)(baseOrderPower * orderMultiplier / 100f);
-      totalPower += (int)(baseChaosPower * chaosMultiplier / 100f);
+      totalPower += (int)(baseOrderPower * (orderMultiplier / 100f));
+      totalPower += (int)(baseChaosPower * (chaosMultiplier / 100f));
       return totalPower;
     }
 
