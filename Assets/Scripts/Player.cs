@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using TurnSystem;
-using static DamageSystem.TypeExtensions;
+using static DamageSystem.DamageTypesExtensions;
 using SkillSystem;
 using NavigationSystem.Directions;
 
