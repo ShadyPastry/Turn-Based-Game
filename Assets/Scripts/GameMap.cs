@@ -49,20 +49,20 @@ public class GameMap : IMap<GameTile> {
   private static GameTile ParseTile(string entry, int row, int col, Dictionary<string, GameObject> tilePrefabs) {
     GameTile result = Object.Instantiate(tilePrefabs[entry]).AddComponent<GameTile>();
 
-    Tile tile;
-    if (row == 0 && col == 0) tile = new Tile(row, col, 2);
-    else if (row == 1 && col == 0) tile = new Tile(row, col, 3);
-    else if (row == 0 && col == 1) tile = new Tile(row, col, 3);
-    else if (row == 1 && col == 1) tile = new Tile(row, col, 4);
+    int elevation;
+    if (row == 0 && col == 0) elevation = 2;
+    else if (row == 1 && col == 0) elevation = 3;
+    else if (row == 0 && col == 1) elevation = 3;
+    else if (row == 1 && col == 1) elevation = 4;
 
-    else if (row == 1 && col == 2) tile = new Tile(row, col, 4);
-    else if (row == 1 && col == 3) tile = new Tile(row, col, 2);
-    else if (row == 0 && col == 2) tile = new Tile(row, col, 2);
-    else if (row == 0 && col == 3) tile = new Tile(row, col, 4);
+    else if (row == 1 && col == 2) elevation = 4;
+    else if (row == 1 && col == 3) elevation = 2;
+    else if (row == 0 && col == 2) elevation = 2;
+    else if (row == 0 && col == 3) elevation = 4;
 
-    else tile = new Tile(row, col, Random.Range(1, 5));
+    else elevation = Random.Range(1, 5);
 
-    result.Initialize(tile);
+    result.Initialize(row, col, elevation);
     return result;
   }
 

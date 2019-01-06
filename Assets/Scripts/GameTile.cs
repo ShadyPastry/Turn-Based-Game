@@ -5,39 +5,40 @@ using NavigationSystem;
 using NavigationSystem.Directions;
 
 public class GameTile : MonoBehaviour, SkillSystem.ITargetable, ITile {
+  public static readonly int elevationScale = 10; //The argument "elevation" in Initialize() is multiplied by this
   public static readonly float width = 3, height = 3;
 
-  public int Row { get { return tile.Row; } }
-  public int Col { get { return tile.Col; } }
-  public int Elevation { get { return tile.Elevation; } }
-
-  private Tile tile;
+  public int Row { get; private set; }
+  public int Col { get; private set; }
+  public int Elevation { get; private set; }
+  private bool isInitialized = false;
 
   private void Start() {
-    transform.localScale = new Vector3(width, Elevation / Tile.elevationSegments, height);
-    transform.position = new Vector3(Col * width, ((float)Elevation) / 2 / Tile.elevationSegments, Row * height);
+    transform.localScale = new Vector3(width, Elevation / elevationScale, height);
+    transform.position = new Vector3(Col * width, ((float)Elevation) / 2 / elevationScale, Row * height);
 
     Renderer renderer = GetComponent<Renderer>();
     Color color = renderer.material.color;
     renderer.material.color = renderer.material.color.Randomize(0.9f, 1.1f);
 
-    if (tile == null) {
+    if (!isInitialized) {
       throw new System.Exception("Must invoke GameTile.Initialize() when initializing");
     }
   }
 
-  public void Initialize(Tile tile) {
-    if (this.tile != null) {
+  public void Initialize(int row, int col, int elevation) {
+    if (isInitialized) {
       throw new System.Exception("GameTile has already been initialized");
     }
-    if (tile == null) {
-      throw new System.Exception("Argument 'tile' cannot be null");
-    }
-    this.tile = tile;
+
+    Row = row;
+    Col = col;
+    Elevation = elevation * elevationScale;
+    isInitialized = true;
   }
 
   public static Vector3 WorldPosition(int row, int col, int elevation) {
-    return new Vector3(col * width, ((float)elevation) / Tile.elevationSegments, row * height);
+    return new Vector3(col * width, ((float)elevation) / elevationScale, row * height);
   }
 
   public Vector3 WorldPosition(int elevation) {

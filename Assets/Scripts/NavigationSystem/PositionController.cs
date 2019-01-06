@@ -13,9 +13,9 @@ namespace NavigationSystem {
     public IMap<T> Map => map;
     private readonly M map;
 
-    //TODO: Allow these to be customized
-    //private int fallIncrement = 5 * Tile.elevationSegments;
-    private int climbIncrement = Tile.elevationSegments;
+    //TODO: Allow these to be customized?
+    //public int FallIncrement { get; }
+    public int ClimbIncrement { get; }
 
     //When on top of a tile's edge, horizontal climbing has many edge cases to consider (pun not intended)
     //We handle them by avoiding them.  ^.-
@@ -37,8 +37,9 @@ namespace NavigationSystem {
     public Direction? Climbing { get; private set; } //We are climbing a tile N/S/E/W of positionedAbove or nothing at all
 
     //Constructor
-    public PositionController(M map, int initialRow, int initialCol) {
+    public PositionController(M map, int climbIncrement, int initialRow, int initialCol) {
       this.map = map;
+      ClimbIncrement = climbIncrement;
 
       PositionedAbove = map.CheckMap(initialRow, initialCol);
       if (PositionedAbove == null) {
@@ -156,7 +157,7 @@ namespace NavigationSystem {
           finalPos = new PositionInfo<T>(beingClimbed, beingClimbed.Elevation, null);
           moveType = MoveType.FinishClimbUpwards;
         } else {
-          int newElevation = Mathf.Min(Elevation + climbIncrement, beingClimbed.Elevation - ledgeOffset);
+          int newElevation = Mathf.Min(Elevation + ClimbIncrement, beingClimbed.Elevation - ledgeOffset);
           finalPos = new PositionInfo<T>(PositionedAbove, newElevation, Climbing);
           moveType = MoveType.ClimbUpwards;
         }
@@ -167,7 +168,7 @@ namespace NavigationSystem {
           finalPos = new PositionInfo<T>(PositionedAbove, PositionedAbove.Elevation, null);
           moveType = MoveType.FinishClimbDownwards;
         } else {
-          int newElevation = Mathf.Max(Elevation - climbIncrement, PositionedAbove.Elevation + ledgeOffset);
+          int newElevation = Mathf.Max(Elevation - ClimbIncrement, PositionedAbove.Elevation + ledgeOffset);
           finalPos = new PositionInfo<T>(PositionedAbove, newElevation, Climbing);
           moveType = MoveType.ClimbDownwards;
         }

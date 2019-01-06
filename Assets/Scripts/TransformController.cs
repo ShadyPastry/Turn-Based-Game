@@ -20,7 +20,7 @@ public class TransformController : IController<GameMap, GameTile> {
 
   public TransformController(Transform transform, GameMap map, int initialRow, int initialCol) {
     this.transform = transform;
-    controller = new PositionController<GameMap, GameTile>(map, initialRow, initialCol);
+    controller = new PositionController<GameMap, GameTile>(map, GameTile.elevationScale, initialRow, initialCol);
 
     GameTile initialPositionedAbove = controller.CurrentPosition().positionedAbove;
     Vector3 initialPosition = initialPositionedAbove.WorldPosition(controller.CurrentPosition().elevation);
