@@ -4,15 +4,13 @@ using UnityEngine;
 using NavigationSystem;
 
 public class GameMap : IMap<GameTile> {
-  private readonly Map tileMap; //TODO: Space efficiency concerns
-  private readonly GameTile[][] map;
+  private readonly Map<GameTile> tileMap;
 
   public int Rows { get { return tileMap.Rows; } }
   public int Cols { get { return tileMap.Cols; } }
 
   public GameMap(TextAsset mapText, Dictionary<string, GameObject> tilePrefabs) {
-    map = GenerateMap(mapText, tilePrefabs);
-    tileMap = new Map(map);
+    tileMap = new Map<GameTile>(GenerateMap(mapText, tilePrefabs));
   }
 
   public int ColumnsInRow(int row) {
@@ -20,15 +18,10 @@ public class GameMap : IMap<GameTile> {
   }
 
   public GameTile CheckMap(int row, int col) {
-    ITile tile = tileMap.CheckMap(row, col);
-    if (tile == null) {
-      return null;
-    }
-
-    return map[tile.Row][tile.Col];
+    return tileMap.CheckMap(row, col);
   }
 
-  public IEnumerator<ITile[]> GetEnumerator() {
+  public IEnumerator<GameTile[]> GetEnumerator() {
     return tileMap.GetEnumerator();
   }
 

@@ -3,19 +3,19 @@ using System.Collections.Generic;
 using UnityEngine;
 
 namespace NavigationSystem {
-  public class Map : IMap<ITile> {
-    private ITile[][] map { get; set; }
+  public class Map<T> : IMap<T> where T : ITile {
+    private T[][] map { get; set; }
     public int Rows { get; }
     public int Cols { get; }
 
-    public Map(ITile[][] map) {
-      this.map = new ITile[map.Length][];
+    public Map(T[][] map) {
+      this.map = new T[map.Length][];
 
       int? maxCol = null;
       for (int r = 0; r < map.Length; r++) {
-        ITile[] row = map[r];
-        this.map[r] = new ITile[row.Length];
-        foreach (ITile tile in row) {
+        T[] row = map[r];
+        this.map[r] = new T[row.Length];
+        foreach (T tile in row) {
           this.map[tile.Row][tile.Col] = row[tile.Col];
           if (maxCol == null || tile.Col > maxCol) {
             maxCol = tile.Col;
@@ -34,18 +34,18 @@ namespace NavigationSystem {
       return map[row].Length;
     }
 
-    public ITile CheckMap(int row, int col) {
+    public T CheckMap(int row, int col) {
       if (0 <= row && row < map.Length) {
         if (0 <= col && col < map[row].Length) {
           return map[row][col];
         }
       }
 
-      return null;
+      return default(T);
     }
 
-    public IEnumerator<ITile[]> GetEnumerator() {
-      foreach (ITile[] row in map) {
+    public IEnumerator<T[]> GetEnumerator() {
+      foreach (T[] row in map) {
         yield return row;
       }
     }

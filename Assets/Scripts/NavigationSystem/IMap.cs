@@ -4,7 +4,7 @@ using UnityEngine;
 using NavigationSystem.Directions;
 
 namespace NavigationSystem {
-  public interface IMap<T> : IEnumerable<ITile[]> where T : ITile {
+  public interface IMap<T> : IEnumerable<T[]> where T : ITile {
     int Rows { get; }
     int Cols { get; }
     int ColumnsInRow(int row);
