@@ -15,21 +15,19 @@ namespace SpellSystem {
   public class Spellbook : MonoBehaviour {
 
     //
-    //Alignment
+    //Alignment (affects Spellbook.CastSpell())
     //
 
-    private int _alignment; //To be set ONLY by Alignment
-    private int alignmentModifiers;
-
     //Affects OrderTier, ChaosTier, and the weighting of orderPower and chaosPower in SpellPage.Power()
+    private int alignment;
     public int Alignment {
-      get { return Mathf.Min(SpellAlignment.PureChaos, Mathf.Max(SpellAlignment.PureOrder, _alignment + alignmentModifiers)); }
+      get { return Mathf.Min(SpellAlignment.MaxValue, Mathf.Max(SpellAlignment.MinValue, alignment)); }
     }
 
     //Affects maximum number of active ranks
     public int OrderTier => SpellAlignment.OrderTier(Alignment);
 
-    //Affects maximum number of link slots
+    //Affects maximum number of links
     public int ChaosTier => SpellAlignment.ChaosTier(Alignment);
 
 
@@ -44,10 +42,11 @@ namespace SpellSystem {
         energies[energy] = 0;
       }
 
-      runeModifiers = new List<IRuneModifier>();
+      runeModifiers = new List<ICastRuneModifier>();
       RuneModifiers = runeModifiers.AsReadOnly();
 
-      _alignment = 501 - 2 * Random.Range(0, 1); //Either 499 or 501, with equal probability
+      availableRunes = new HashSet<Rune>();
+      AvailableRunes = availableRunes; //Can still be cast back to a HashSet and modified
     }
 
 
@@ -55,33 +54,54 @@ namespace SpellSystem {
     //Runes
     //
 
+    private readonly HashSet<Rune> availableRunes;
+    public IReadOnlyCollection<Rune> AvailableRunes { get; }
+    public int MaxAvailableRunes { get; } = 5;
+
     private readonly Dictionary<SpellAttribute, int> energies;
     public IReadOnlyDictionary<SpellAttribute, int> Energies { get; }
 
-    private readonly List<IRuneModifier> runeModifiers;
-    public IReadOnlyList<IRuneModifier> RuneModifiers { get; }
+    private readonly List<ICastRuneModifier> runeModifiers;
+    public IReadOnlyList<ICastRuneModifier> RuneModifiers { get; }
 
-    public void AddRune(Rune rune) {
+    public bool AddRune(Rune rune) {
+      if (availableRunes.Count == MaxAvailableRunes) {
+        return false;
+      }
+      return availableRunes.Add(rune);
+    }
+
+    public bool RemoveRune(Rune rune) {
+      return availableRunes.Remove(rune);
+    }
+
+    public bool CastRune(Rune rune) {
+      //Relies on the fact that the only instances of Rune are those exposed by the class
+      if (!availableRunes.Contains(rune)) {
+        return false;
+      }
+
       //Base energy from rune
       foreach (RuneEnergy runeEnergy in rune.Energies) {
         energies[runeEnergy.attr] += runeEnergy.energy;
       }
 
       //Energy bonuses from any modifiers
-      foreach (IRuneModifier runeModifier in runeModifiers) {
+      foreach (ICastRuneModifier runeModifier in runeModifiers) {
         foreach (RuneEnergy runeEnergy in runeModifier.RuneEnergyBonuses(rune)) {
           energies[runeEnergy.attr] += runeEnergy.energy;
         }
       }
 
-      alignmentModifiers += rune.AlignmentChange;
+      alignment += rune.AlignmentChange;
+      return true;
     }
 
-    public void AddRuneModifier(IRuneModifier modifier) {
+    public void AddCastRuneModifier(ICastRuneModifier modifier) {
       throw new System.NotImplementedException();
     }
 
-    public void RemoveRuneModifier(IRuneModifier modifier) {
+    public void RemoveCastRuneModifier(ICastRuneModifier modifier) {
       throw new System.NotImplementedException();
     }
 
@@ -90,7 +110,7 @@ namespace SpellSystem {
     //Spellpages
     //
 
-    public void AddSpellpage(int pageNumber, Spellpage spellpage) {
+    public Spellpage AddSpellpage(int pageNumber) {
       throw new System.NotImplementedException();
     }
 
@@ -102,9 +122,16 @@ namespace SpellSystem {
       throw new System.NotImplementedException();
     }
 
+    public bool CanCastSpell(int pageNumber) {
+      throw new System.NotImplementedException();
+    }
+
     public void CastSpell(int pageNumber) {
+      if (!CanCastSpell(pageNumber)) {
+        throw new System.Exception("Cannot cast spell");
+      }
+
       Spellpage spellpage = ViewSpellpage(pageNumber);
-      int spellPower = spellpage.ComputeSpellPower(Alignment);
       throw new System.NotImplementedException();
     }
   }

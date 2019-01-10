@@ -3,29 +3,25 @@ using System.Collections.Generic;
 using UnityEngine;
 
 namespace SpellSystem {
-  public class Spellpage {
-
-
-    //
-    //Future additions brainstorm
-    //
-    /**
+  public class Spellpage : ISlotCustomizer<RuneSlot, Rune, RuneSlotStatuses> {
+    /** 
+     * FUTURE ADDITIONS BRAINSTORM
      * Preferred alignment based on the runes in the spell
-     * 
      */
 
+    private static readonly int[] availableFilesInRank = new int[] {
+      1, 2, 2, 4,
+      4, 6, 8, 10 //Sums to 37
+    };
 
-    //
-    //Constructor
-    //
+    private readonly Spellbook spellbook;
 
-    public Spellpage() {
-      runeSlots = new SortedSet<RuneSlot>[Ranks];
-      for (int r = 0; r < Ranks; r++) {
-        runeSlots[r] = new SortedSet<RuneSlot>();
-      }
+    //ISlotCustomizer API is implemented via this
+    private readonly RuneSlotCustomizer runeSlotCustomizer = 
+      new RuneSlotCustomizer(availableFilesInRank, availableFilesInRank[availableFilesInRank.Length - 1]);
 
-      links = new SortedSet<LinkInfo>();
+    public Spellpage(Spellbook spellbook) {
+      this.spellbook = spellbook;
     }
 
 
@@ -33,54 +29,87 @@ namespace SpellSystem {
     //Power computations
     //
 
-
-    //Index represents OrderTier
-    //If OrderTier is too low, some ranks will be ignored
-    private static readonly int[] bestAccessibleRank = new int[] {
-      8, 6, 6, 6, 5, 5, 5, 5, 4, 4, 4, 1
-    };
-
-    //Index represents ChaosTier
-    //If ChaosTier is too low, some links will be ignored
-    private static readonly int[] maxLinkSlots = new int[] {
-      0, 2, 2, 2, 4, 4, 4, 4, 7, 7, 7, 10
-    };
-
-    public int ComputeSpellPower(int alignment) {
-      throw new System.NotImplementedException();
-    }
-
     //Computes the power of the Rune at the specified position with the given alignment
-    public int ComputeRunePower(int alignment, int rank, int file) {
-      int a = 50 - alignment / 10;
-      int chaosMultiplier = alignment == SpellAlignment.PureChaos ? 250 : a == SpellAlignment.PureOrder ? 0 : 100 + (a * a * a / 1250);
-      int orderMultiplier = alignment == SpellAlignment.PureOrder ? 250 : a == SpellAlignment.PureChaos ? 0 : 200 - chaosMultiplier;
+    public int ComputeRunePower(int rank, int file) {
+      int orderTier = spellbook.OrderTier;
 
-      int baseOrderPower = OrderPower(alignment, rank, file);
-      int baseChaosPower = ChaosPower(alignment, rank, file);
+      int chaosMultiplier, orderMultiplier;
+      if (orderTier == SpellAlignment.MaxTier) {
+        chaosMultiplier = 0;
+        orderMultiplier = 250;
+
+      } else if (orderTier == SpellAlignment.MinTier) {
+        chaosMultiplier = 250;
+        orderMultiplier = 0;
+
+      } else {
+        int x;
+        //Falls within interval [0, 499] U [501, 1000]
+        x = spellbook.Alignment < 500 ? spellbook.Alignment : spellbook.Alignment + 1;
+
+        //Falls within interval [-50, -1] U [1, 50]
+        x = 50 - spellbook.Alignment / 10;
+
+        //Equivalent to chaosMultiplier = 100 + 100 * (1 - (spellbook.Alignment/10) / 50)^3
+        chaosMultiplier = 100 + (x * x * x / 1250);
+        orderMultiplier = 200 - chaosMultiplier;
+      }
 
       int totalPower = 0;
-      totalPower += (int)(baseOrderPower * (orderMultiplier / 100f));
-      totalPower += (int)(baseChaosPower * (chaosMultiplier / 100f));
+      totalPower += (int)(OrderPower(rank, file) * (orderMultiplier / 100f));
+      totalPower += (int)(ChaosPower(rank, file) * (chaosMultiplier / 100f));
       return totalPower;
     }
 
     //Returns the power of the Rune at the specified position as determined by its subordinates
-    public int OrderPower(int alignment, int rank, int file) {
-      //R1 is a subordinate of R2 iff...
-      //  R1.rank - R2.rank > 0
-      //    Lower LHS means more power
-      //  Mathf.Abs(R1.file - R2.file) < 4 - ((OrderTier + 1) / 3)
-      //    Lower LHS means more power
-      //    Lower RHS also means more power
-      throw new System.NotImplementedException();
+    public int OrderPower(int rank, int file) {
+      Slot<Rune, RuneSlotStatuses> slot = Get(rank, file);
+      if (slot == null) {
+        return 0;
+      }
+      int result = 0;
+
+      //Iterate over all other runes
+      for (int r = 1; r <= BestAccessibleRank(spellbook.OrderTier); r++) {
+        for (int f = 1; f <= AvailableFilesInRank(r); f++) {
+          Slot<Rune, RuneSlotStatuses> otherSlot = Get(r, f);
+          if (r == f || otherSlot == null) {
+            continue;
+          }
+
+          int rankDifference = -(rank - r); //Negated because the "superior" ranks are LOWER, not higher
+          int fileDifference = Mathf.Abs(file - f);
+
+          //other is a subordinate of rune iff rune has a superior rank
+          //If other is NOT a subordinate of rune, then it contributes no power
+          if (rankDifference <= 0) {
+            continue;
+          }
+
+          int distance = rankDifference + fileDifference;
+          int maxDistance = 6;
+
+          //More power is awarded when subordinates are closer to rune
+          int distPoints = 1 + Mathf.Max(1, maxDistance - distance); //Falls within interval [2, 6]
+          result += distPoints * distPoints; //Adds either 4, 9, 16, 25, or 36
+        }
+      }
+      return result;
     }
 
     //Returns the power of the Rune at the specified position as determined by its links
-    public int ChaosPower(int alignment, int rank, int file) {
-      //Every rune in a link slot is linked to every other rune in a link slot
-      //TODO: Give Rune an "IdealLinkDistance" field; the power of a link depends on that
-      throw new System.NotImplementedException();
+    public int ChaosPower(int rank, int file) {
+      int result = 0;
+      List<Slot<Rune, RuneSlotStatuses>> links = SelectRandomLinks(MaxLinks(spellbook.ChaosTier));
+
+      //Iterate over linked runes
+      foreach (var slot in links) {
+        Slot<Rune, RuneSlotStatuses> otherSlot = Get(slot.rank, slot.file);
+        if ((slot.rank == rank && slot.file == file) || otherSlot == null) {
+          continue;
+        }
+      }
+      return result;
     }
 
 
@@ -90,133 +119,101 @@ namespace SpellSystem {
 
     //TODO: Add a rank 0 with special behavior?
 
-    //Index represents rank
-    private static readonly int[] maxActiveFilesInRank = new int[] {
-      1, 2, 2, 4, 4, 6, 8, 10 //Sums to 37
+    //Index represents ChaosTier
+    private readonly List<int> maxLinks = new List<int> {
+      0, 2, 2, 2,
+      4, 4, 4, 4,
+      7, 7, 7, 10
     };
 
-    //Rank 1: 1 active file,   requires OrderTier >= 11
-    //Rank 2: 2 active files,  requires OrderTier >= 10
-    //Rank 3: 2 active files,  requires OrderTier >= 8
-    //Rank 4: 4 active files,  requires OrderTier >= 4
-    //Rank 5: 4 active files,  requires OrderTier >= 1
-    //Rank 6: 6 active files,  requires OrderTier >= 1
-    //Rank 7: 8 active files,  requires OrderTier >= 1
-    //Rank 8: 10 active files, requires OrderTier >= 0
-    private readonly SortedSet<RuneSlot>[] runeSlots;
-    private struct RuneSlot : IComparer<RuneSlot> {
-      public readonly Rune rune;
-      public readonly int file;
-      public RuneSlot(Rune rune, int file) {
-        this.rune = rune;
-        this.file = file;
-      }
+    //Index represents OrderTier
+    private readonly List<int> bestAccessibleRank = new List<int> {
+      8, 6, 6, 6,
+      5, 5, 5, 5,
+      4, 4, 4, 1
+    };
 
-      public int Compare(RuneSlot x, RuneSlot y) {
-        return x.file.CompareTo(y.file);
-      }
-
-      public override bool Equals(object obj) {
-        if (!(obj is RuneSlot)) {
-          return false;
-        }
-        RuneSlot other = (RuneSlot)obj;
-        return other.file == file;
-      }
-
-      public override int GetHashCode() {
-        return file.GetHashCode();
-      }
+    //As ChaosTier increases, more links can contribute to power
+    //Among the RuneSlots marked as links, MaxLinks(chaosTier) will be randomly selected
+    //  RuneSlots in inaccessible ranks will still be inaccessible
+    public int MaxLinks(int chaosTier) {
+      return maxLinks[chaosTier];
     }
 
-    //A set representing all rune slots marked as links, sorted by their priority
-    private readonly SortedSet<LinkInfo> links;
-    private struct LinkInfo : IComparer<LinkInfo> {
-      public readonly int rank;
-      public readonly int file;
-      public readonly int priority;
-      public LinkInfo(int rank, int file, int priority = 0) {
-        this.rank = rank;
-        this.file = file;
-        this.priority = priority;
-      }
-
-      public int Compare(LinkInfo x, LinkInfo y) {
-        return x.priority.CompareTo(y.priority);
-      }
-
-      //Depends only on rank and file
-      public override bool Equals(object obj) {
-        if (!(obj is LinkInfo)) {
-          return false;
-        }
-        LinkInfo other = (LinkInfo)obj;
-        return other.rank == rank && other.file == file;
-      }
-
-      //Depends only on rank and file
-      public override int GetHashCode() {
-        int result = 13;
-        result = result * 7 + rank.GetHashCode();
-        result = result * 7 + file.GetHashCode();
-        return result;
-      }
+    //As OrderTier increases, better ranks can contribute to power
+    //If OrderTier is too low, said ranks will be ignored when computing power
+    public int BestAccessibleRank(int orderTier) {
+      return bestAccessibleRank[orderTier];
     }
 
-    public int Ranks { get; } = maxActiveFilesInRank.Length;
-    public int Files { get; } = 10;
+    //Selects a random, size k subset of link slots
+    //  If k >= the number of link slots, returns all link slots
+    //Randomness of the order is NOT guaranteed
+    private List<Slot<Rune, RuneSlotStatuses>> SelectRandomLinks(int k) {
+      var result = new List<Slot<Rune, RuneSlotStatuses>>();
+      var linkSlots =
+        new List<Slot<Rune, RuneSlotStatuses>>(runeSlotCustomizer.GetSlots(slot => (slot.status & RuneSlotStatuses.Link) == RuneSlotStatuses.Link));
+      int n = linkSlots.Count;
 
-    //Adds rune at the given position, replacing any Rune already there
-    //Returns false if no more runes can be added to the rank
-    public bool AddRune(Rune rune, int rank, int file) {
-      RemoveRune(rank, file);
-      if (runeSlots[rank].Count == maxActiveFilesInRank[rank]) {
-        return false;
-      }
-      return runeSlots[rank].Add(new RuneSlot(rune, file));
-    }
+      //If asking for more than available, just return everything
+      //Otherwise, add k random slots to result
+      if (k >= n) {
+        return linkSlots;
 
-    //Removes the Rune at the given position
-    public void RemoveRune(int rank, int file) {
-      //Recall that equality/comparison of RuneSlot objects is dependent ONLY on RuneSlot.file, NOT on RuneSlot.rune
-      runeSlots[rank].Remove(new RuneSlot(null, file));
-    }
-
-    //Returns the Rune at the given position (or null if there isn't one)
-    public Rune ViewRune(int rank, int file) {
-      foreach (RuneSlot slot in runeSlots[rank]) {
-        if (slot.file == file) {
-          return slot.rune;
+      } else if (k > 0) {
+        foreach (var slot in linkSlots) {
+          int x = Random.Range(1, n + 1); //Random number from interval [1, n]
+          if (x <= k) { //Occurs with probability k/n
+            result.Add(slot);
+            k -= 1;
+            if (result.Count == k) break;
+          }
+          n -= 1;
         }
       }
 
-      return null;
+      return result;
     }
 
-    //Marks a position as being a link slot
-    public void ActivateLinkSlot(int rank, int file) {
-      links.Add(new LinkInfo(rank, file));
+
+    //
+    //ISlotCustomizer API (implemented via runeSlotCustomizer)
+    //
+
+    public int Ranks => runeSlotCustomizer.Ranks;
+    public int Files => runeSlotCustomizer.Files;
+    public int Count => runeSlotCustomizer.Count;
+
+    public bool PositionIsLegal(int rank, int file) {
+      return runeSlotCustomizer.PositionIsLegal(rank, file);
     }
 
-    //Marks a position as not being a link slot
-    public void DeactivateLinkSlot(int rank, int file) {
-      links.Remove(new LinkInfo(rank, file));
+    public int AvailableFilesInRank(int rank) {
+      return runeSlotCustomizer.AvailableFilesInRank(rank);
     }
 
-    //Sets the link priority of the given position
-    public void SetLinkPriority(int rank, int file, int priority) {
-      links.Add(new LinkInfo(rank, file, priority));
+    public RuneSlot Get(int rank, int file) {
+      return runeSlotCustomizer.Get(rank, file);
     }
 
-    //Returns the link priority of the given position
-    public int ViewLinkPriority(int rank, int file) {
-      foreach (LinkInfo linkInfo in links) {
-        if (linkInfo.rank == rank && linkInfo.file == file) {
-          return linkInfo.priority;
-        }
-      }
+    public bool Add(Rune item, int rank, int file) {
+      return runeSlotCustomizer.Add(item, rank, file);
+    }
 
-      throw new System.Exception("Link not found");
+    public bool Remove(int rank, int file) {
+      return runeSlotCustomizer.Remove(rank, file);
+    }
+
+    public RuneSlotStatuses SlotStatus(int rank, int file) {
+      return runeSlotCustomizer.SlotStatus(rank, file);
+    }
+
+    public void AddStatusFlags(RuneSlotStatuses flagsToAdd, int rank, int file) {
+      runeSlotCustomizer.AddStatusFlags(flagsToAdd, rank, file);
+    }
+
+    public void RemoveStatusFlags(RuneSlotStatuses flagsToRemove, int rank, int file) {
+      runeSlotCustomizer.RemoveStatusFlags(flagsToRemove, rank, file);
     }
   }
 }
