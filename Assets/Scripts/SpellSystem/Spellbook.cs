@@ -12,7 +12,7 @@ namespace SpellSystem {
    * IRuneModifers influence the energy-changes from adding Runes
    * IRuneModifiers can be added and removed from Spellbook
    */
-  public class Spellbook : MonoBehaviour {
+  public class Spellbook {
 
     //
     //Alignment (affects Spellbook.CastSpell())
@@ -56,13 +56,24 @@ namespace SpellSystem {
 
     private readonly HashSet<Rune> availableRunes;
     public IReadOnlyCollection<Rune> AvailableRunes { get; }
-    public int MaxAvailableRunes { get; } = 5;
+    public int MaxAvailableRunes { get; private set; } = 5;
 
     private readonly Dictionary<SpellAttribute, int> energies;
     public IReadOnlyDictionary<SpellAttribute, int> Energies { get; }
 
     private readonly List<ICastRuneModifier> runeModifiers;
     public IReadOnlyList<ICastRuneModifier> RuneModifiers { get; }
+
+    //Attempt to change the maximum number of runes that the Spellbook can store
+    //Fails, returning false, if the Spellbook contains more runes than the new value for MaxAvailableRunes
+    public bool SetMaxAvailableRunes(int newMaxAvailableRunes) {
+      if (AvailableRunes.Count > newMaxAvailableRunes) {
+        return false;
+      }
+
+      MaxAvailableRunes = newMaxAvailableRunes;
+      return true;
+    }
 
     public bool AddRune(Rune rune) {
       if (availableRunes.Count == MaxAvailableRunes) {

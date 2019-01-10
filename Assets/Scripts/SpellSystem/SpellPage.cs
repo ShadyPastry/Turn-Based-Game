@@ -146,6 +146,20 @@ namespace SpellSystem {
       return bestAccessibleRank[orderTier];
     }
 
+    //Returns true iff the slot at the given position will contribute to power
+    public bool SlotIsActive(int rank, int file) {
+      if (!PositionIsLegal(rank, file)) {
+        throw new System.ArgumentException("Illegal rank/file");
+      }
+
+      return rank <= BestAccessibleRank(spellbook.OrderTier);
+    }
+
+    //Returns true iff the slot at the given position is a link slot
+    public bool SlotIsLinkSlot(int rank, int file) {
+      return (SlotStatus(rank, file) & RuneSlotStatuses.Link) == RuneSlotStatuses.Link;
+    }
+
     //Selects a random, size k subset of link slots
     //  If k >= the number of link slots, returns all link slots
     //Randomness of the order is NOT guaranteed
