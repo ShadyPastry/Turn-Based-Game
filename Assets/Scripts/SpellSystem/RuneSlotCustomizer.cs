@@ -5,7 +5,7 @@ using UnityEngine;
 namespace SpellSystem {
   //Ideally, there would be a base version using generics, and RuneSlotCustomizer would use it via composition
   //Sadly, there is no way to have a flag-enum type constraint
-  public class RuneSlotCustomizer : ISlotCustomizer<RuneSlot, Rune, RuneSlotStatuses> {
+  internal class RuneSlotCustomizer : ISlotCustomizer<RuneSlot, Rune, RuneSlotStatuses> {
 
     private readonly IReadOnlyList<int> availableFilesInRank;
     private readonly SortedList<int, Dictionary<int, RuneSlot>> elements;
@@ -29,8 +29,10 @@ namespace SpellSystem {
     public int Files { get; }
     public int Count { get; private set; }
 
-    //SlotCustomizer will have availableFilesInRank.Length ranks; ranks are ONE-INDEXED
-    //Rank k can contain up to availableFilesInRank[k-1] SlotElements, each associated with a ONE-INDEXED file
+    //SlotCustomizer will have availableFilesInRank.Length ranks
+    //  Ranks are ONE-INDEXED
+    //Rank k (ONE-INDEXED) can contain up to availableFilesInRank[k-1] SlotElements, each associated with a file
+    //  Files are ONE-INDEXED
     public RuneSlotCustomizer(int[] availableFilesInRank, int maxFiles) {
       Ranks = availableFilesInRank.Length;
       Files = maxFiles;
