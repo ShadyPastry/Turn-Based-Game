@@ -3,8 +3,74 @@ using System.Collections.Generic;
 using UnityEngine;
 
 namespace SpellSystem {
-  //TODO: Add/remove and view ISpellbookModifier objects
-  //TODO: Add/remove, activate/deactivate, and view SpellPage objects
+  public interface ISpellbookObserver {
+    void OnAlignmentChanged(int newAlignment);
+    void OnOrderTierChanged(int newOrderTier);
+    void OnChaosTierChanged(int newChaosTier);
+
+    //newEnergies is sorted by enum-order and contains entries for SpellAttributes with 0 energy
+    void OnEnergiesChanged(IReadOnlyDictionary<SpellAttribute, int> newEnergies);
+
+    void OnMaxStoredRunesChanged(int newMaxStoredRunes);
+
+    void OnRuneStored(Rune added);
+    void OnRuneRemoved(Rune removed);
+
+    void OnRuneCast(Rune cast);
+
+    void OnCastRuneModifierAdded(ICastRuneModifier modifier);
+    void OnCastRuneModifierRemoved(ICastRuneModifier modifier);
+
+    void OnSpellpageAdded(int pageNumber);
+    void OnSpellpageRemoved(int pageNumber);
+
+    void OnSpellCast(int pageNumber);
+  }
+
+  //Exists primarily for organizational purposes
+  //If I ever wanted to reuse it, I'd probably need to break it into multiple interfaces
+  internal interface ISpellbook {
+    //Alignment
+    int Alignment { get; }
+    int OrderTier { get; }
+    int ChaosTier { get; }
+
+    //Energy storage
+    IReadOnlyDictionary<SpellAttribute, int> Energies { get; }
+
+    //Rune storage
+    IReadOnlyList<Rune> StoredRunes { get; }
+    int MaxStoredRunes { get; }
+    bool SetMaxStoredRunes(int newMaxStoredRunes);
+
+    //Attempt to add or remove a rune
+    bool StoreRune(Rune rune);
+    bool RemoveRune(Rune rune);
+
+    //Attempt to cast the rune at AvailableRunes[runeIndex]
+    bool CastRune(int runeIndex);
+
+    //Add and remove cast rune modifiers
+    IReadOnlyList<ICastRuneModifier> CastRuneModifiers { get; }
+    bool AddCastRuneModifier(ICastRuneModifier modifier);
+    bool RemoveCastRuneModifier(ICastRuneModifier modifier);
+
+    //Looking mighty similar to ISlotCustomizer (minus the status flags for slots)...
+
+    //Add, remove, and get spell pages
+    bool AddSpellpage(int pageNumber);
+    bool RemoveSpellpage(int pageNumber);
+    Spellpage GetSpellpage(int pageNumber);
+
+    //Cast spells via spellpages
+    bool CanCastSpell(int pageNumber);
+    void CastSpell(int pageNumber);
+
+    //Activate and deactivate spellpages
+    bool ActivateSpellpage(int pageNumber);
+    bool DeactivateSpellpage(int pageNumber);
+  }
+
   /**
    * A Spellbook maintains "energy" amounts for each SpellAttribute
    * These amounts are changed by adding Runes via AddRune()
@@ -12,16 +78,45 @@ namespace SpellSystem {
    * IRuneModifers influence the energy-changes from adding Runes
    * IRuneModifiers can be added and removed from Spellbook
    */
-  public class Spellbook {
+  public class Spellbook : ISpellbook {
+
+    private HashSet<ISpellbookObserver> observers = new HashSet<ISpellbookObserver>();
+    public bool AddListener(ISpellbookObserver observer) {
+      if (observer == null) {
+        throw new System.ArgumentNullException();
+      }
+      return observers.Add(observer);
+    }
+    public bool RemoveListener(ISpellbookObserver observer) {
+      return observers.Remove(observer);
+    }
 
     //
     //Alignment (affects Spellbook.CastSpell())
     //
 
     //Affects OrderTier, ChaosTier, and the weighting of orderPower and chaosPower in SpellPage.Power()
-    private int alignment;
+    private int _alignment;
     public int Alignment {
-      get { return Mathf.Min(SpellAlignment.MaxValue, Mathf.Max(SpellAlignment.MinValue, alignment)); }
+      get {
+        return Mathf.Min(SpellAlignment.MaxValue, Mathf.Max(SpellAlignment.MinValue, _alignment));
+      }
+
+      private set {
+        int oldAlignment = Alignment, oldOrderTier = OrderTier, oldChaosTier = ChaosTier;
+        _alignment = value;
+        int newAlignment = Alignment, newOrderTier = OrderTier, newChaosTier = ChaosTier;
+
+        if (newAlignment != oldAlignment) {
+          observers.ForEach(o => o.OnAlignmentChanged(newAlignment));
+          if (newOrderTier != oldOrderTier) {
+            observers.ForEach(o => o.OnOrderTierChanged(newOrderTier));
+          }
+          if (newChaosTier != oldChaosTier) {
+            observers.ForEach(o => o.OnChaosTierChanged(newChaosTier));
+          }
+        }
+      }
     }
 
     //Affects maximum number of active ranks
@@ -36,17 +131,17 @@ namespace SpellSystem {
     //
 
     public Spellbook() {
-      energies = new Dictionary<SpellAttribute, int>();
+      energies = new SortedDictionary<SpellAttribute, int>(Comparer<SpellAttribute>.Create((x, y) => x.CompareTo(y)));
       Energies = new System.Collections.ObjectModel.ReadOnlyDictionary<SpellAttribute, int>(energies);
       foreach (SpellAttribute energy in energies.Keys) {
         energies[energy] = 0;
       }
 
-      runeModifiers = new List<ICastRuneModifier>();
-      RuneModifiers = runeModifiers.AsReadOnly();
+      castRuneModifiers = new List<ICastRuneModifier>();
+      CastRuneModifiers = castRuneModifiers.AsReadOnly();
 
-      availableRunes = new HashSet<Rune>();
-      AvailableRunes = availableRunes; //Can still be cast back to a HashSet and modified
+      storedRunes = new List<Rune>();
+      StoredRunes = storedRunes.AsReadOnly();
     }
 
 
@@ -54,65 +149,85 @@ namespace SpellSystem {
     //Runes
     //
 
-    private readonly HashSet<Rune> availableRunes;
-    public IReadOnlyCollection<Rune> AvailableRunes { get; }
-    public int MaxAvailableRunes { get; private set; } = 5;
+    private readonly List<Rune> storedRunes;
+    public IReadOnlyList<Rune> StoredRunes { get; }
+    public int MaxStoredRunes { get; private set; } = 5;
 
-    private readonly Dictionary<SpellAttribute, int> energies;
+    private readonly IDictionary<SpellAttribute, int> energies;
     public IReadOnlyDictionary<SpellAttribute, int> Energies { get; }
 
-    private readonly List<ICastRuneModifier> runeModifiers;
-    public IReadOnlyList<ICastRuneModifier> RuneModifiers { get; }
+    private readonly List<ICastRuneModifier> castRuneModifiers;
+    public IReadOnlyList<ICastRuneModifier> CastRuneModifiers { get; }
 
     //Attempt to change the maximum number of runes that the Spellbook can store
     //Fails, returning false, if the Spellbook contains more runes than the new value for MaxAvailableRunes
-    public bool SetMaxAvailableRunes(int newMaxAvailableRunes) {
-      if (AvailableRunes.Count > newMaxAvailableRunes) {
+    //Returns true iff MaxStoredRunes changes to a new value
+    public bool SetMaxStoredRunes(int newMaxStoredRunes) {
+      if (StoredRunes.Count >= newMaxStoredRunes) {
         return false;
       }
 
-      MaxAvailableRunes = newMaxAvailableRunes;
+      MaxStoredRunes = newMaxStoredRunes;
+      observers.ForEach(o => o.OnMaxStoredRunesChanged(MaxStoredRunes));
       return true;
     }
 
-    public bool AddRune(Rune rune) {
-      if (availableRunes.Count == MaxAvailableRunes) {
+    public bool StoreRune(Rune rune) {
+      if (storedRunes.Count == MaxStoredRunes || storedRunes.Contains(rune)) {
         return false;
       }
-      return availableRunes.Add(rune);
+      storedRunes.Add(rune);
+      observers.ForEach(o => o.OnRuneStored(rune));
+      return true;
     }
 
     public bool RemoveRune(Rune rune) {
-      return availableRunes.Remove(rune);
+      bool success = storedRunes.Remove(rune);
+      if (success) {
+        observers.ForEach(o => o.OnRuneRemoved(rune));
+      }
+
+      return success;
     }
 
-    public bool CastRune(Rune rune) {
+    public bool CastRune(int runeIndex) {
       //Relies on the fact that the only instances of Rune are those exposed by the class
-      if (!availableRunes.Contains(rune)) {
+      Rune rune = StoredRunes[runeIndex];
+      if (!storedRunes.Contains(rune)) {
         return false;
       }
 
+      bool energiesChanged = false;
+
       //Base energy from rune
       foreach (RuneEnergy runeEnergy in rune.Energies) {
+        energiesChanged = energiesChanged || runeEnergy.energy != 0;
         energies[runeEnergy.attr] += runeEnergy.energy;
       }
 
       //Energy bonuses from any modifiers
-      foreach (ICastRuneModifier runeModifier in runeModifiers) {
+      foreach (ICastRuneModifier runeModifier in castRuneModifiers) {
         foreach (RuneEnergy runeEnergy in runeModifier.RuneEnergyBonuses(rune)) {
+          energiesChanged = energiesChanged || runeEnergy.energy != 0;
           energies[runeEnergy.attr] += runeEnergy.energy;
         }
       }
 
-      alignment += rune.AlignmentChange;
+      Alignment += rune.AlignmentChange;
+      observers.ForEach(o => o.OnRuneCast(rune));
+      if (energiesChanged) {
+        observers.ForEach(o => o.OnEnergiesChanged(Energies));
+      }
       return true;
     }
 
-    public void AddCastRuneModifier(ICastRuneModifier modifier) {
+    public bool AddCastRuneModifier(ICastRuneModifier modifier) {
+      observers.ForEach(o => o.OnCastRuneModifierAdded(modifier));
       throw new System.NotImplementedException();
     }
 
-    public void RemoveCastRuneModifier(ICastRuneModifier modifier) {
+    public bool RemoveCastRuneModifier(ICastRuneModifier modifier) {
+      observers.ForEach(o => o.OnCastRuneModifierRemoved(modifier));
       throw new System.NotImplementedException();
     }
 
@@ -121,15 +236,25 @@ namespace SpellSystem {
     //Spellpages
     //
 
-    public Spellpage AddSpellpage(int pageNumber) {
+    public bool ActivateSpellpage(int pageNumber) {
       throw new System.NotImplementedException();
     }
 
-    public void RemoveSpellpage(int pageNumber) {
+    public bool DeactivateSpellpage(int pageNumber) {
       throw new System.NotImplementedException();
     }
 
-    public Spellpage ViewSpellpage(int pageNumber) {
+    public bool AddSpellpage(int pageNumber) {
+      observers.ForEach(o => o.OnSpellpageAdded(pageNumber));
+      throw new System.NotImplementedException();
+    }
+
+    public bool RemoveSpellpage(int pageNumber) {
+      observers.ForEach(o => o.OnSpellpageRemoved(pageNumber));
+      throw new System.NotImplementedException();
+    }
+
+    public Spellpage GetSpellpage(int pageNumber) {
       throw new System.NotImplementedException();
     }
 
@@ -142,7 +267,9 @@ namespace SpellSystem {
         throw new System.Exception("Cannot cast spell");
       }
 
-      Spellpage spellpage = ViewSpellpage(pageNumber);
+      Spellpage spellpage = GetSpellpage(pageNumber);
+      observers.ForEach(o => o.OnSpellCast(pageNumber));
+      observers.ForEach(o => o.OnEnergiesChanged(Energies));  //Remember, casting a spell consumes energy.
       throw new System.NotImplementedException();
     }
   }
