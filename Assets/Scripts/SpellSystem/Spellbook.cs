@@ -15,7 +15,6 @@ namespace SpellSystem {
 
     void OnRuneStored(Rune added);
     void OnRuneRemoved(Rune removed);
-
     void OnRuneCast(Rune cast);
 
     void OnCastRuneModifierAdded(ICastRuneModifier modifier);
@@ -23,7 +22,6 @@ namespace SpellSystem {
 
     void OnSpellpageAdded(int pageNumber);
     void OnSpellpageRemoved(int pageNumber);
-
     void OnSpellCast(int pageNumber);
   }
 
@@ -81,14 +79,34 @@ namespace SpellSystem {
   public class Spellbook : ISpellbook {
 
     private HashSet<ISpellbookObserver> observers = new HashSet<ISpellbookObserver>();
-    public bool AddListener(ISpellbookObserver observer) {
+    public bool AddObserver(ISpellbookObserver observer) {
       if (observer == null) {
         throw new System.ArgumentNullException();
       }
       return observers.Add(observer);
     }
-    public bool RemoveListener(ISpellbookObserver observer) {
+    public bool RemoveObserver(ISpellbookObserver observer) {
       return observers.Remove(observer);
+    }
+
+    public void RefreshObserver(ISpellbookObserver observer) {
+      observer.OnAlignmentChanged(Alignment);
+      observer.OnOrderTierChanged(OrderTier);
+      observer.OnChaosTierChanged(ChaosTier);
+
+      observer.OnEnergiesChanged(Energies);
+
+      observer.OnMaxStoredRunesChanged(MaxStoredRunes);
+
+      foreach (Rune rune in StoredRunes) {
+        observer.OnRuneStored(rune);
+      }
+
+      foreach (ICastRuneModifier modifier in CastRuneModifiers) {
+        observer.OnCastRuneModifierAdded(modifier);
+      }
+
+      //OnSpellpageAdded(int pageNumber);
     }
 
     //
