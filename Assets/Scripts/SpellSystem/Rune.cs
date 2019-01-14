@@ -6,32 +6,30 @@ namespace SpellSystem {
   //Runes are used by Spellbook and SpellPage
   //When added to Spellbook, they change Spellbook.Energies and Spellbook.Alignment
   //See SpellPage for details on how Runes affect SpellPage
-  public abstract partial class Rune {
+  public abstract class Rune : IRune {
     //If you want to be able to "level up" Runes, then add a Rune-specific "RuneUpgrade : ISpellbookModifier, IUpgradeable" to Spellbook
 
-    public static readonly Rune Heat = new BasicRune(SpellAttribute.Fire);
-    public static readonly Rune Chill = new BasicRune(SpellAttribute.Ice);
-    public static readonly Rune Shock = new BasicRune(SpellAttribute.Volt);
-    public static readonly Rune Empower = new BasicRune(SpellAttribute.Power);
-    public static readonly Rune Stabilize = new BasicRune(SpellAttribute.Stability);
-    public static readonly Rune Refactor = new BasicRune(SpellAttribute.Efficiency);
+    //public static readonly Rune Heat = new BasicRune(0, SpellAttribute.Fire, "Heat");
+    //public static readonly Rune Chill = new BasicRune(1, SpellAttribute.Ice, "Chill");
+    //public static readonly Rune Shock = new BasicRune(2, SpellAttribute.Volt, "Shock");
+    //public static readonly Rune Empower = new BasicRune(3, SpellAttribute.Power, "Empower");
+    //public static readonly Rune Stabilize = new BasicRune(4, SpellAttribute.Stability, "Stabilize");
+    //public static readonly Rune Refactor = new BasicRune(5, SpellAttribute.Efficiency, "Refactor");
 
-    public static readonly Rune Flare = new UnstableRune(SpellAttribute.Fire);
-    public static readonly Rune Flurry = new UnstableRune(SpellAttribute.Ice);
-    public static readonly Rune Surge = new UnstableRune(SpellAttribute.Volt);
+    //public static readonly Rune Flare = new UnstableRune(6, SpellAttribute.Fire, "Flare");
+    //public static readonly Rune Flurry = new UnstableRune(7, SpellAttribute.Ice, "Flurry");
+    //public static readonly Rune Surge = new UnstableRune(8, SpellAttribute.Volt, "Surge");
 
-    //Guaranteed never to change
+    public uint Id { get; }
+    public abstract string Name { get; }
     public System.Collections.ObjectModel.ReadOnlyCollection<RuneEnergy> Energies { get; }
 
-    private Rune(List<RuneEnergy> energies) {
+    public Rune(uint id, List<RuneEnergy> energies) {
+      Id = id;
       Energies = new System.Collections.ObjectModel.ReadOnlyCollection<RuneEnergy>(new List<RuneEnergy>(energies));
     }
 
     public abstract int AlignmentChange { get; }
-
-    //public abstract int IdealRank { get; }
-    //public abstract int IdealLinkDistance { get; }
-    //public abstract int IdealLinkCount { get; }
   }
 
   public struct RuneEnergy {
