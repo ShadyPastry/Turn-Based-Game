@@ -3,10 +3,36 @@ using System.Collections.Generic;
 using UnityEngine;
 
 namespace SpellSystem {
-  public class Spellpage : ISlotCustomizer<RuneSlot, Rune, RuneSlotStatuses> {
+
+  //Exists primarily for organizational purposes
+  //If I ever wanted to reuse it, I'd probably need to break it into multiple interfaces
+  internal interface ISpellpage : ISlotCustomizer<RuneSlot, Rune, RuneSlotStatuses> {
+
+    //Compute the power of the rune at the given position
+    int ComputeRunePower(int rank, int file);
+    int OrderPower(int rank, int file);
+    int ChaosPower(int rank, int file);
+
+    //As ChaosTier increases, more links can contribute to power
+    //Among the RuneSlots marked as links, MaxLinks(chaosTier) will be randomly selected
+    //  RuneSlots in inaccessible ranks will still be inaccessible
+    int MaxLinks(int chaosTier);
+
+    //As OrderTier increases, better ranks can contribute to power
+    //If OrderTier is too low, said ranks will be ignored when computing power
+    int BestAccessibleRank(int orderTier);
+
+    //Returns true iff the slot at the given position will contribute to power
+    bool SlotIsActive(int rank, int file);
+
+    //Returns true iff the slot at the given position is a link slot
+    bool SlotIsLinkSlot(int rank, int file);
+  }
+
+  public class Spellpage : ISpellpage {
     /** 
      * FUTURE ADDITIONS BRAINSTORM
-     * Preferred alignment based on the runes in the spell
+     * Preferred alignment based on the runes in the spell?  Additive "default alignment"?
      */
 
     private static readonly int[] availableFilesInRank = new int[] {
