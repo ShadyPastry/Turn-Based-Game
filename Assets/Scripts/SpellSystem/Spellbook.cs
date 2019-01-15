@@ -55,14 +55,21 @@ namespace SpellSystem {
 
     //Looking mighty similar to ISlotCustomizer (minus the status flags for slots)...
 
+    //The highest page number in the spellbook
+    int MaxPageNumber { get; }
+
     //Add, remove, and get spell pages
     bool AddSpellpage(int pageNumber);
     bool RemoveSpellpage(int pageNumber);
     Spellpage GetSpellpage(int pageNumber);
 
-    //Cast spells via spellpages
+    //Return whether the spell can be cast
     bool CanCastSpell(int pageNumber);
-    void CastSpell(int pageNumber);
+
+    //Attempt to cast the spell, which will remove energy from Energies
+    //Returns true if successful, false if not
+    //It is up to the caller to define and invoke any effects
+    bool CastSpell(int pageNumber);
 
     //Activate and deactivate spellpages
     bool ActivateSpellpage(int pageNumber);
@@ -78,36 +85,22 @@ namespace SpellSystem {
    */
   public class Spellbook : ISpellbook {
 
-    private HashSet<ISpellbookObserver> observers = new HashSet<ISpellbookObserver>();
-    public bool AddObserver(ISpellbookObserver observer) {
-      if (observer == null) {
-        throw new System.ArgumentNullException();
-      }
-      return observers.Add(observer);
-    }
-    public bool RemoveObserver(ISpellbookObserver observer) {
-      return observers.Remove(observer);
-    }
-
-    public void RefreshObserver(ISpellbookObserver observer) {
-      observer.OnAlignmentChanged(Alignment);
-      observer.OnOrderTierChanged(OrderTier);
-      observer.OnChaosTierChanged(ChaosTier);
-
-      observer.OnEnergiesChanged(Energies);
-
-      observer.OnMaxStoredRunesChanged(MaxStoredRunes);
-
-      foreach (Rune rune in StoredRunes) {
-        observer.OnRuneStored(rune);
+    public Spellbook() {
+      energies = new SortedDictionary<SpellAttribute, int>(Comparer<SpellAttribute>.Create((x, y) => x.CompareTo(y)));
+      Energies = new System.Collections.ObjectModel.ReadOnlyDictionary<SpellAttribute, int>(energies);
+      foreach (SpellAttribute energy in energies.Keys) {
+        energies[energy] = 0;
       }
 
-      foreach (ICastRuneModifier modifier in CastRuneModifiers) {
-        observer.OnCastRuneModifierAdded(modifier);
-      }
+      castRuneModifiers = new List<ICastRuneModifier>();
+      CastRuneModifiers = castRuneModifiers.AsReadOnly();
 
-      //OnSpellpageAdded(int pageNumber);
+      storedRunes = new List<Rune>();
+      StoredRunes = storedRunes.AsReadOnly();
+
+      spellpages = new Spellpage[MaxPageNumber + 1]; //+1 is because API is one-indexed; note that we "waste" the zeroth index
     }
+
 
     //
     //Alignment (affects Spellbook.CastSpell())
@@ -142,25 +135,6 @@ namespace SpellSystem {
 
     //Affects maximum number of links
     public int ChaosTier => SpellAlignment.ChaosTier(Alignment);
-
-
-    //
-    //Constructor
-    //
-
-    public Spellbook() {
-      energies = new SortedDictionary<SpellAttribute, int>(Comparer<SpellAttribute>.Create((x, y) => x.CompareTo(y)));
-      Energies = new System.Collections.ObjectModel.ReadOnlyDictionary<SpellAttribute, int>(energies);
-      foreach (SpellAttribute energy in energies.Keys) {
-        energies[energy] = 0;
-      }
-
-      castRuneModifiers = new List<ICastRuneModifier>();
-      CastRuneModifiers = castRuneModifiers.AsReadOnly();
-
-      storedRunes = new List<Rune>();
-      StoredRunes = storedRunes.AsReadOnly();
-    }
 
 
     //
@@ -254,41 +228,132 @@ namespace SpellSystem {
     //Spellpages
     //
 
+    public int MaxPageNumber { get; } = 5;
+
+    private Spellpage[] spellpages;
+
     public bool ActivateSpellpage(int pageNumber) {
+      if (!IsLegalPageNumber(pageNumber)) {
+        throw new System.Exception("Illegal page number");
+      }
+
       throw new System.NotImplementedException();
     }
 
     public bool DeactivateSpellpage(int pageNumber) {
+      if (!IsLegalPageNumber(pageNumber)) {
+        throw new System.Exception("Illegal page number");
+      }
+
       throw new System.NotImplementedException();
     }
 
     public bool AddSpellpage(int pageNumber) {
+      if (!IsLegalPageNumber(pageNumber)) {
+        throw new System.Exception("Illegal page number");
+      }
+
+      if (spellpages[pageNumber] != null) {
+        //Must first remove the existing Spellpage
+        return false;
+      }
+
+      spellpages[pageNumber] = new Spellpage(this);
       observers.ForEach(o => o.OnSpellpageAdded(pageNumber));
-      throw new System.NotImplementedException();
+      return true;
     }
 
     public bool RemoveSpellpage(int pageNumber) {
+      if (!IsLegalPageNumber(pageNumber)) {
+        throw new System.Exception("Illegal page number");
+      }
+
+      if (spellpages[pageNumber] == null) {
+        //There's nothing to remove!
+        return false;
+      }
+
+      spellpages[pageNumber] = null;
       observers.ForEach(o => o.OnSpellpageRemoved(pageNumber));
-      throw new System.NotImplementedException();
+      return true;
     }
 
     public Spellpage GetSpellpage(int pageNumber) {
-      throw new System.NotImplementedException();
+      if (!IsLegalPageNumber(pageNumber)) {
+        throw new System.Exception("Illegal page number");
+      }
+
+      return spellpages[pageNumber];
     }
 
     public bool CanCastSpell(int pageNumber) {
+      if (!IsLegalPageNumber(pageNumber)) {
+        throw new System.Exception("Illegal page number");
+      }
+
+      //TODO: Check Energies against energy requirements
+
       throw new System.NotImplementedException();
     }
 
-    public void CastSpell(int pageNumber) {
+    public bool CastSpell(int pageNumber) {
+      if (!IsLegalPageNumber(pageNumber)) {
+        throw new System.Exception("Illegal page number");
+      }
+
       if (!CanCastSpell(pageNumber)) {
-        throw new System.Exception("Cannot cast spell");
+        return false;
       }
 
       Spellpage spellpage = GetSpellpage(pageNumber);
+
+      //TODO: Adjust Energies based on energy requirements
+
       observers.ForEach(o => o.OnSpellCast(pageNumber));
       observers.ForEach(o => o.OnEnergiesChanged(Energies));  //Remember, casting a spell consumes energy.
-      throw new System.NotImplementedException();
+      return true;
+    }
+
+    private bool IsLegalPageNumber(int pageNumber) {
+      return 1 <= pageNumber && pageNumber <= MaxPageNumber;
+    }
+
+
+    //
+    //Observers
+    //
+
+    private HashSet<ISpellbookObserver> observers = new HashSet<ISpellbookObserver>();
+    public bool AddObserver(ISpellbookObserver observer) {
+      if (observer == null) {
+        throw new System.ArgumentNullException();
+      }
+      return observers.Add(observer);
+    }
+    public bool RemoveObserver(ISpellbookObserver observer) {
+      return observers.Remove(observer);
+    }
+
+    public void RefreshObserver(ISpellbookObserver observer) {
+      observer.OnAlignmentChanged(Alignment);
+      observer.OnOrderTierChanged(OrderTier);
+      observer.OnChaosTierChanged(ChaosTier);
+
+      observer.OnEnergiesChanged(Energies);
+
+      observer.OnMaxStoredRunesChanged(MaxStoredRunes);
+
+      foreach (Rune rune in StoredRunes) {
+        observer.OnRuneStored(rune);
+      }
+
+      foreach (ICastRuneModifier modifier in CastRuneModifiers) {
+        observer.OnCastRuneModifierAdded(modifier);
+      }
+
+      //foreach (Spellpage spellpage in ...) {
+      //  OnSpellpageAdded(int pageNumber);
+      //}
     }
   }
 }
